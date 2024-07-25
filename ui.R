@@ -1,5 +1,3 @@
-# ui.R
-
 library(shiny)
 library(leaflet)
 library(leaflet.extras)
@@ -29,7 +27,27 @@ ui <- fluidPage(
                  textOutput("sourceInfo")),
         tabPanel("Heatmap", 
                  leafletOutput("heatMap", height = "80vh"),
-                 textOutput("heatmapSourceInfo"))
+                 textOutput("heatmapSourceInfo")),
+        tabPanel(
+          "Kontakt",
+          fluidPage(
+            titlePanel("Kontakt"),
+            fluidRow(
+              column(
+                width = 6,
+                h3("Robert Hofmann"),
+                p("Sprecher ADFC Mannheim"),
+                p("Email: Robert.Hofmann [at] adfc-bw.de")
+              ),
+              column(
+                width = 6,
+                h3("Arne Warnke"),
+                p("ADFC Mannheim"),
+                p("Email: arne.warnke [at] gmail.com")
+              )
+            )
+          )
+        )
       )
     )
   )
