@@ -84,4 +84,22 @@ server <- function(input, output, session) {
   output$heatmapSourceInfo <- renderText({
     "Quelle: Unfallstatistik Statistisches Bundesamt"
   })
+  
+  output$deadlyAccidentsTable <- DT::renderDT({
+    deadlyAccidents()
+  }, escape = FALSE, options = list(pageLength = 10))
+  
+  # Table deadly accidents
+  deadlyAccidents <- reactive({
+    accidentData %>%
+      filter(trimws(UKATEGORIE) == "Unfall mit Getöteten") %>%
+      mutate(
+        Datum = paste0(sprintf("%02d", UMONAT), ".", UJAHR),
+        Beschreibung = Kommentar,
+        Ort = paste0("<a href='https://www.openstreetmap.org/?mlat=", 
+                     Latitude, "&mlon=", Longitude, "#map=18/", Latitude, "/", Longitude,
+                     "' target='_blank'>OpenStreetMap</a>")
+      ) %>%
+      select(Jahr = UJAHR, Datum, Beschreibung, Ort)
+  })
 }
