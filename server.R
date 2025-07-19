@@ -1,4 +1,5 @@
 server <- function(input, output, session) {
+  
   # Load the data
   accidentData <- read.csv("Unfaelle.csv")
   
@@ -12,6 +13,17 @@ server <- function(input, output, session) {
   observe({
     updateSelectInput(session, "UJAHR", choices = c("Alle", sort(unique(accidentData$UJAHR), decreasing = TRUE)))
     updateSelectInput(session, "UKATEGORIE", choices = c("Alle", unique(accidentData$UKATEGORIE)))
+  })
+  
+  observe({
+    updateSelectInput(
+      session, "UJAHR",
+      choices = c("Alle", sort(unique(accidentData$UJAHR[accidentData$UJAHR != 2025]), decreasing = TRUE))
+    )
+    updateSelectInput(
+      session, "UKATEGORIE",
+      choices = c("Alle", unique(accidentData$UKATEGORIE))
+    )
   })
   
   # Reactive expression to filter data based on input
