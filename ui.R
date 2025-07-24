@@ -47,6 +47,12 @@ ui <- fluidPage(
           leafletOutput("heatMap", height = "80vh"),
           textOutput("heatmapSourceInfo")
         ),
+        tabPanel(
+          "Rasterkarte", 
+          leafletOutput("gridMap", height = "80vh"),
+          textOutput("gridMapSourceInfo")
+        ),
+        
         
         tabPanel(
           "Kontakt",

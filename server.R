@@ -41,13 +41,12 @@ server <- function(input, output, session) {
     filteredData
   })
   
-  # Generate color palette for UKATEGORIE
+  # 
   category_colors <- colorFactor(rainbow(length(unique(accidentData$UKATEGORIE))), unique(accidentData$UKATEGORIE))
   
-  # Render the Leaflet point map
   output$accidentMap <- renderLeaflet({
     data <- getMapData()
-    if(nrow(data) == 0) {
+    if (nrow(data) == 0) {
       return(leaflet() %>% addTiles() %>% setView(lng = 8.4660, lat = 49.4875, zoom = 12))
     }
     
@@ -56,7 +55,7 @@ server <- function(input, output, session) {
       addCircleMarkers(
         lng = ~Longitude, lat = ~Latitude, 
         color = ~category_colors(UKATEGORIE),
-        radius = 3, # Smaller dots
+        radius = 3,
         popup = ~paste("Category:", UKATEGORIE),
         label = ~lapply(seq_len(nrow(data)), function(i) {
           HTML(sprintf(
@@ -68,12 +67,19 @@ server <- function(input, output, session) {
           style = list(
             "font-weight" = "normal", 
             padding = "3px 8px",
-            "white-space" = "normal",  # Allow text to wrap
-            "word-wrap" = "break-word"  # Break long words if necessary
+            "white-space" = "normal",
+            "word-wrap" = "break-word"
           ),
           textsize = "15px",
           direction = "auto"
         )
+      ) %>%
+      addLegend(
+        "bottomright", 
+        pal = category_colors, 
+        values = data$UKATEGORIE,
+        title = "Unfallkategorie",
+        opacity = 1
       )
   })
   
@@ -89,12 +95,12 @@ server <- function(input, output, session) {
   
   # Add this output for the source information
   output$sourceInfo <- renderText({
-    "Quelle: Unfallstatistik Statistisches Bundesamt"
+    "Quelle: ADFC Mannheim / Unfallstatistik Statistisches Bundesamt"
   })
   
   # Add this output for the heatmap source information
   output$heatmapSourceInfo <- renderText({
-    "Quelle: Unfallstatistik Statistisches Bundesamt"
+    "Quelle: ADFC Mannheim / Unfallstatistik Statistisches Bundesamt"
   })
   
   output$deadlyAccidentsTable <- DT::renderDT({
@@ -114,4 +120,62 @@ server <- function(input, output, session) {
       ) %>%
       select(Jahr = UJAHR, Datum, Beschreibung, Ort)
   })
+  
+  # Render the Grid Density Map
+  output$gridMap <- renderLeaflet({
+    data <- getMapData()
+    
+    if (nrow(data) == 0) {
+      return(leaflet() %>% addTiles() %>% setView(lng = 8.4660, lat = 49.4875, zoom = 12))
+    }
+    
+    # Define grid size (approx 0.001 degrees ≈ ~100m)
+    GRID_SIZE <- 0.001
+    
+    # Compute grid bins
+    data <- data %>%
+      mutate(
+        lat_bin = floor(Latitude / GRID_SIZE) * GRID_SIZE,
+        lon_bin = floor(Longitude / GRID_SIZE) * GRID_SIZE
+      )
+    
+    # Count accidents per grid cell
+    grid_counts <- data %>%
+      group_by(lat_bin, lon_bin) %>%
+      summarise(count = n(), .groups = 'drop')
+    
+    # Color palette
+    pal <- colorNumeric(palette = "YlOrRd", domain = grid_counts$count)
+    
+    # Create base map
+    m <- leaflet() %>%
+      addTiles()
+    
+    # Add rectangles for each grid cell
+    for (i in 1:nrow(grid_counts)) {
+      lat <- grid_counts$lat_bin[i]
+      lon <- grid_counts$lon_bin[i]
+      count <- grid_counts$count[i]
+      
+      m <- m %>%
+        addRectangles(
+          lng1 = lon, lat1 = lat,
+          lng2 = lon + GRID_SIZE, lat2 = lat + GRID_SIZE,
+          fillColor = pal(count),
+          fillOpacity = 0.7,
+          color = "#777",
+          weight = 0.5,
+          label = paste(count, "Unfälle")
+        )
+    }
+    
+    m %>%
+      addLegend("bottomright", pal = pal, values = grid_counts$count, title = "Unfälle pro Rasterzelle")
+  })
+  
+  
+  output$gridMapSourceInfo <- renderText({
+    "Quelle: ADFC Mannheim / Unfallstatistik Statistisches Bundesamt"
+  })
+
 }
