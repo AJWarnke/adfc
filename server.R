@@ -59,8 +59,8 @@ server <- function(input, output, session) {
         popup = ~paste("Category:", UKATEGORIE),
         label = ~lapply(seq_len(nrow(data)), function(i) {
           HTML(sprintf(
-            "<div style='width: 200px;'>Datum (Monat/Jahr): %s.%s um %s:00 Uhr<br>Category: %s<br>%s</div>",
-            data$UMONAT[i], data$UJAHR[i], data$USTUNDE[i], data$UKATEGORIE[i], data$Kommentar[i]
+            "<div style='width: 500px;'>Datum (Monat/Jahr): %s.%s um %s:00 Uhr<br>Category: %s<br>Beteiligte: %s<br>Typ: %s<br>Art: %s<br>%s</div>",
+            data$UMONAT[i], data$UJAHR[i], data$USTUNDE[i], data$UKATEGORIE[i], data$involved[i], data$typ[i], data$art[i], data$Kommentar[i]
           ))
         }),
         labelOptions = labelOptions(
@@ -116,9 +116,10 @@ server <- function(input, output, session) {
         Beschreibung = Kommentar,
         Ort = paste0("<a href='https://www.openstreetmap.org/?mlat=", 
                      Latitude, "&mlon=", Longitude, "#map=18/", Latitude, "/", Longitude,
-                     "' target='_blank'>OpenStreetMap</a>")
+                     "' target='_blank'>OpenStreetMap</a>"),
+        Beteiligt = involved
       ) %>%
-      select(Jahr = UJAHR, Datum, Beschreibung, Ort)
+      select(Jahr = UJAHR, Datum, Beschreibung, Ort, Beteiligt)
   })
   
   # Render the Grid Density Map
