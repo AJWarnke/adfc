@@ -13,6 +13,7 @@ This tool supports **Vision Zero** — the goal of eliminating all traffic fatal
 
 ## Last Update
 
+** August 12, 2025** - Added additional information
 **June 9, 2025** — Added accident data for 2024.
 
 ## Features
