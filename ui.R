@@ -99,11 +99,14 @@ ui <- fluidPage(
             )
           )
         ),
-			tabPanel("Liste tödlicher Radunfälle",
-			         fluidPage(
-			           h3("Tödliche Unfälle - Übersicht"),
-			           DTOutput("deadlyAccidentsTable")  # <- CORRECT
-			         )
+			tabPanel(
+			  "Liste tödlicher Radunfälle",
+			  fluidPage(
+			    h3("Tödliche Unfälle - Übersicht"),
+			    downloadButton("downloadDeadlyAccidents", "Download als CSV"),  # <- NEW
+			    br(), br(),
+			    DTOutput("deadlyAccidentsTable")
+			  )
 			)
       )
     )
