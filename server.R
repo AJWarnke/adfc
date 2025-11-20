@@ -2,6 +2,7 @@ server <- function(input, output, session) {
   
   # Load the data
   accidentData <- read.csv("Unfaelle.csv")
+  print(head(accidentData))
   
   # Rename and convert columns
   accidentData <- accidentData %>%
@@ -113,13 +114,14 @@ server <- function(input, output, session) {
       filter(trimws(UKATEGORIE) == "Unfall mit Getöteten") %>%
       mutate(
         Datum = paste0(sprintf("%02d", UMONAT), ".", UJAHR),
+        Stadtbezirk = Stadtteil,
         Beschreibung = Kommentar,
         Ort = paste0("<a href='https://www.openstreetmap.org/?mlat=", 
                      Latitude, "&mlon=", Longitude, "#map=18/", Latitude, "/", Longitude,
                      "' target='_blank'>OpenStreetMap</a>"),
 					 Beteiligt = involved
       ) %>%
-      select(Jahr = UJAHR, Datum, Beschreibung, Ort, Beteiligt)
+      select(Jahr = UJAHR, Datum, Stadtbezirk, Beschreibung, Ort, Beteiligt)
   })
   
   # Render the Grid Density Map
