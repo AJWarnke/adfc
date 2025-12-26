@@ -2,13 +2,6 @@ server <- function(input, output, session) {
   
   # Load the data
   accidentData <- read.csv("Unfaelle.csv")
-  print(head(accidentData))
-  
-  # Rename and convert columns
-  accidentData <- accidentData %>%
-    rename(Longitude = XGCSWGS84, Latitude = YGCSWGS84) %>%
-    mutate(Longitude = as.numeric(gsub(",", ".", Longitude)),
-           Latitude = as.numeric(gsub(",", ".", Latitude)))
   
   # Update selectInput choices dynamically
   observe({
@@ -60,8 +53,8 @@ server <- function(input, output, session) {
         popup = ~paste("Category:", UKATEGORIE),
         label = ~lapply(seq_len(nrow(data)), function(i) {
           HTML(sprintf(
-            "<div style='width: 500px;'>Datum (Monat/Jahr): %s.%s um %s:00 Uhr<br>Category: %s<br>Beteiligte: %s<br>Typ: %s<br>Art: %s<br>%s</div>",
-            data$UMONAT[i], data$UJAHR[i], data$USTUNDE[i], data$UKATEGORIE[i], data$involved[i], data$typ[i], data$art[i], data$Kommentar[i]
+            "<div style='width: 200px;'>Datum (Monat/Jahr): %s.%s um %s:00 Uhr<br>Category: %s<br>%s</div>",
+            data$UMONAT[i], data$UJAHR[i], data$USTUNDE[i], data$UKATEGORIE[i], data$Kommentar[i]
           ))
         }),
         labelOptions = labelOptions(
@@ -114,14 +107,12 @@ server <- function(input, output, session) {
       filter(trimws(UKATEGORIE) == "Unfall mit Getöteten") %>%
       mutate(
         Datum = paste0(sprintf("%02d", UMONAT), ".", UJAHR),
-        Stadtbezirk = Stadtteil,
         Beschreibung = Kommentar,
         Ort = paste0("<a href='https://www.openstreetmap.org/?mlat=", 
                      Latitude, "&mlon=", Longitude, "#map=18/", Latitude, "/", Longitude,
-                     "' target='_blank'>OpenStreetMap</a>"),
-					 Beteiligt = involved
+                     "' target='_blank'>OpenStreetMap</a>")
       ) %>%
-      select(Jahr = UJAHR, Datum, Stadtbezirk, Beschreibung, Ort, Beteiligt)
+      select(Jahr = UJAHR, Datum, Beschreibung, Ort)
   })
   
   # Render the Grid Density Map
