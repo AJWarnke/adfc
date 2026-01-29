@@ -1,9 +1,3 @@
-library(shiny)
-library(leaflet)
-library(leaflet.extras)
-library(tidyverse)
-library(DT)
-
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -15,7 +9,6 @@ ui <- fluidPage(
       }
     "))
   ),
-  
   # ADFC-Logo oben rechts
   tags$div(
     style = "position: absolute; top: 10px; right: 20px; z-index: 1000;",
@@ -25,40 +18,36 @@ ui <- fluidPage(
       alt = "ADFC Logo"
     )
   ),
-  
   titlePanel("Unfälle mit beteiligten Radfahrern in Mannheim (jetzt inkl. 2024)"),
-  
   sidebarLayout(
     sidebarPanel(
       selectInput("UJAHR", "Jahr", choices = NULL, selected = "Alle"),
-      selectInput("UKATEGORIE", "Unfallschwere", choices = NULL, selected = "Alle")
+      selectInput("UKATEGORIE", "Unfallschwere", choices = NULL, selected = "Alle"),
+      selectInput("UTYP1", "Unfalltyp", choices = NULL, selected = "Alle"),
+      selectInput("involved", "Beteiligte (leer = Alle)", choices = NULL, multiple = TRUE),
+      selectInput("art", "Unfallart", choices = NULL, selected = "Alle")
     ),
-    
     mainPanel(
       tabsetPanel(
         tabPanel(
-          "Punktkarte", 
+          "Punktkarte",
           leafletOutput("accidentMap", height = "80vh"),
           textOutput("sourceInfo")
         ),
-        
         tabPanel(
-          "Heatmap", 
+          "Heatmap",
           leafletOutput("heatMap", height = "80vh"),
           textOutput("heatmapSourceInfo")
         ),
         tabPanel(
-          "Rasterkarte", 
+          "Rasterkarte",
           leafletOutput("gridMap", height = "80vh"),
           textOutput("gridMapSourceInfo")
         ),
-        
-        
         tabPanel(
           "Kontakt",
           fluidPage(
             titlePanel("Kontakt und Informationen"),
-            
             fluidRow(
               column(
                 width = 6,
@@ -73,24 +62,19 @@ ui <- fluidPage(
                 p("Email: arne.warnke [at] adfc-bw.de")
               )
             ),
-            
             hr(),
-            
             h3("Über dieses Projekt"),
             p("Diese interaktive Karte zeigt Unfalldaten mit Radfahrerbeteiligung in Mannheim."),
             p("Ziel ist es, mit Hilfe von offenen Daten die Transparenz zu fördern, städtische Planungen zu unterstützen und zur Verkehrssicherheit im Sinne von Vision Zero beizutragen."),
             p("Die Anwendung wurde vom ADFC Mannheim entwickelt – auf ehrenamtlicher Basis."),
-			p("Quelle ist die Unfallstatistik des Statistischen Bundesamtes."),
-			
-			p("Weitere Informationen zur Unfallverhütung durch den ADFC Mannheim finden Sie hier:"),
-			tags$a(
+            p("Quelle ist die Unfallstatistik des Statistischen Bundesamtes."),
+            p("Weitere Informationen zur Unfallverhütung durch den ADFC Mannheim finden Sie hier:"),
+            tags$a(
               href = "https://mannheim.adfc.de/artikel/unfallverhuetung-als-zentrale-aufgabe-des-adfc-mannheim",
               "Unfallverhütung als zentrale Aufgabe des ADFC Mannheim",
               target = "_blank"
             ),
-            
             br(), br(),
-			
             p("Der Quellcode ist öffentlich zugänglich auf GitHub:"),
             tags$a(
               href = "https://github.com/AJWarnke/adfc",
@@ -99,15 +83,15 @@ ui <- fluidPage(
             )
           )
         ),
-			tabPanel(
-			  "Liste tödlicher Radunfälle",
-			  fluidPage(
-			    h3("Tödliche Unfälle - Übersicht"),
-			    downloadButton("downloadDeadlyAccidents", "Download als CSV"),  # <- NEW
-			    br(), br(),
-			    DTOutput("deadlyAccidentsTable")
-			  )
-			)
+        tabPanel(
+          "Liste tödlicher Radunfälle",
+          fluidPage(
+            h3("Tödliche Unfälle - Übersicht"),
+            downloadButton("downloadDeadlyAccidents", "Download als CSV"),
+            br(), br(),
+            DTOutput("deadlyAccidentsTable")
+          )
+        )
       )
     )
   )

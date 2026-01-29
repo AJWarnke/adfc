@@ -3,12 +3,19 @@ server <- function(input, output, session) {
   # Load the data
   accidentData <- read.csv("Unfaelle.csv")
   
-  # Update selectInput choices dynamically
-  observe({
-    updateSelectInput(session, "UJAHR", choices = c("Alle", sort(unique(accidentData$UJAHR), decreasing = TRUE)))
-    updateSelectInput(session, "UKATEGORIE", choices = c("Alle", unique(accidentData$UKATEGORIE)))
-  })
+  # Codierung für UTYP1 gemäß PDF - nur Text ohne Nummern
+  utyp1_labels <- c(
+    "Fahrunfall (F)",
+    "Abbiege-Unfall (AB)",
+    "Einbiegen/Kreuzen-Unfall (EK)",
+    "Überschreiten-Unfall (ÜS)",
+    "Unfall durch ruhenden Verkehr (RV)",
+    "Unfall im Längsverkehr (LV)",
+    "Sonstiger Unfall (SO)"
+  )
+  names(utyp1_labels) <- 1:7
   
+  # Update selectInput choices dynamically
   observe({
     updateSelectInput(
       session, "UJAHR",
@@ -18,20 +25,66 @@ server <- function(input, output, session) {
       session, "UKATEGORIE",
       choices = c("Alle", unique(accidentData$UKATEGORIE))
     )
+    
+    # UTYP1 mit beschreibenden Labels (nur Text, keine Nummern)
+    utyp1_values <- sort(unique(accidentData$UTYP1))
+    # Create named vector: display text, value = number
+    utyp1_choices <- c("Alle" = "Alle", setNames(as.character(utyp1_values), utyp1_labels[as.character(utyp1_values)]))
+    
+    updateSelectInput(
+      session,
+      "UTYP1",
+      choices = utyp1_choices
+    )
+    
+    # involved Filter - Multiple Choice (kein "Alle" Option nötig bei multiple=TRUE)
+    updateSelectInput(
+      session,
+      "involved",
+      choices = sort(unique(accidentData$involved))
+    )
+    
+    # art Filter
+    updateSelectInput(
+      session,
+      "art",
+      choices = c("Alle", sort(unique(accidentData$art)))
+    )
   })
   
   # Reactive expression to filter data based on input
   getMapData <- reactive({
     filteredData <- accidentData
+    
     if (input$UJAHR != "Alle") {
       filteredData <- filteredData %>% filter(UJAHR == input$UJAHR)
     }
+    
     if (input$UKATEGORIE != "Alle") {
       filteredData <- filteredData %>% filter(UKATEGORIE == input$UKATEGORIE)
     }
+    
+    # UTYP1 Filter
+    if (input$UTYP1 != "Alle") {
+      # input$UTYP1 enthält jetzt direkt die Nummer als String
+      selected_utyp1 <- as.integer(input$UTYP1)
+      filteredData <- filteredData %>% filter(UTYP1 == selected_utyp1)
+    }
+    
+    # involved Filter - Multiple Choice
+    if (!is.null(input$involved) && length(input$involved) > 0) {
+      filteredData <- filteredData %>% filter(involved %in% input$involved)
+    }
+    
+    # art Filter
+    if (input$art != "Alle") {
+      filteredData <- filteredData %>% filter(art == input$art)
+    }
+    
     if (nrow(filteredData) == 0) {
       print("No data found for the selected filters.") # Debugging information
     }
+    
     filteredData
   })
   
@@ -109,7 +162,8 @@ server <- function(input, output, session) {
         Datum = paste0(sprintf("%02d", UMONAT), ".", UJAHR),
         Beschreibung = Kommentar,
         Ort = paste0("<a href='https://www.openstreetmap.org/?mlat=", 
-                     Latitude, "&mlon=", Longitude, "#map=18/", Latitude, "/", Longitude,
+                     Latitude, "&mlon=", Longitude, "#map=18/", Latitude, 
+                     "/", Longitude,
                      "' target='_blank'>OpenStreetMap</a>")
       ) %>%
       select(Jahr = UJAHR, Datum, Beschreibung, Ort)
@@ -180,5 +234,5 @@ server <- function(input, output, session) {
       write.csv(deadlyAccidents(), file, row.names = FALSE)
     }
   )
-
+  
 }
