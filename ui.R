@@ -9,6 +9,7 @@ ui <- fluidPage(
       }
     "))
   ),
+  
   # ADFC-Logo oben rechts
   tags$div(
     style = "position: absolute; top: 10px; right: 20px; z-index: 1000;",
@@ -18,30 +19,33 @@ ui <- fluidPage(
       alt = "ADFC Logo"
     )
   ),
+  
   titlePanel("Unfälle mit beteiligten Radfahrern in Mannheim (jetzt inkl. 2024)"),
+  
   sidebarLayout(
     sidebarPanel(
       selectInput("UJAHR", "Jahr", choices = NULL, selected = "Alle"),
       selectInput("UKATEGORIE", "Unfallschwere", choices = NULL, selected = "Alle"),
       selectInput("UTYP1", "Unfalltyp", choices = NULL, selected = "Alle"),
-      selectInput("involved", "Beteiligte (leer = Alle)", choices = NULL, multiple = TRUE),
+      selectInput("involved", "Beteiligte (leer: Alle)", choices = NULL, multiple = TRUE),
       selectInput("art", "Unfallart", choices = NULL, selected = "Alle")
     ),
+    
     mainPanel(
       tabsetPanel(
         tabPanel(
-          "Punktkarte",
-          leafletOutput("accidentMap", height = "80vh"),
+          "Punktkarte", 
+          leaflet::leafletOutput("accidentMap", height = "80vh"),  # <--- HIER
           textOutput("sourceInfo")
         ),
         tabPanel(
           "Heatmap",
-          leafletOutput("heatMap", height = "80vh"),
+          leaflet::leafletOutput("heatMap", height = "80vh"),      # <--- HIER
           textOutput("heatmapSourceInfo")
         ),
         tabPanel(
           "Rasterkarte",
-          leafletOutput("gridMap", height = "80vh"),
+          leaflet::leafletOutput("gridMap", height = "80vh"),      # <--- HIER
           textOutput("gridMapSourceInfo")
         ),
         tabPanel(
@@ -89,7 +93,7 @@ ui <- fluidPage(
             h3("Tödliche Unfälle - Übersicht"),
             downloadButton("downloadDeadlyAccidents", "Download als CSV"),
             br(), br(),
-            DTOutput("deadlyAccidentsTable")
+            DT::DTOutput("deadlyAccidentsTable")  # <--- Auch hier Namespace
           )
         )
       )
