@@ -1,99 +1,123 @@
-library(shiny)
-library(leaflet)
-library(leaflet.extras)
-library(tidyverse)
-library(DT)
-
-ui <- fluidPage(
-  tags$head(
-    tags$style(HTML("
-      #accidentMap, #heatMap {
-        height: calc(100vh - 120px) !important;
-      }
-      .leaflet-container {
-        height: 100%;
-      }
-    "))
-  ),
-  # ADFC-Logo oben rechts
-  tags$div(
-    style = "position: absolute; top: 10px; right: 20px; z-index: 1000;",
-    tags$img(
-      src = "https://upload.wikimedia.org/wikipedia/commons/a/a4/ADFC-Logo_2009_1.svg",
-      height = "50px",
-      alt = "ADFC Logo"
+ui <- dashboardPage(
+  dashboardHeader(title = "BikeCounter Mannheim"),
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Radzählstellen", tabName = "map", icon = icon("bicycle")),
+      menuItem("Standort-Analyse", tabName = "standort_analysis", icon = icon("chart-column")),
+      menuItem("Jahresvergleich Kumulativ", tabName = "cumulative", icon = icon("line-chart")),
+      menuItem("Rohdaten Explorer", tabName = "raw_data", icon = icon("line-chart")),
+      menuItem("Monatsübersicht", tabName = "monthly_table", icon = icon("table"))  # NEW
     )
   ),
-  titlePanel("Unfälle mit beteiligten Radfahrern in Mannheim (jetzt inkl. 2024)"),
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("UJAHR", "Jahr", choices = NULL, selected = "Alle"),
-      selectInput("UKATEGORIE", "Unfallschwere", choices = NULL, selected = "Alle"),
-      selectInput("UTYP1", "Unfalltyp", choices = NULL, selected = "Alle")  # NEU
-    ),
-    mainPanel(
-      tabsetPanel(
-        tabPanel(
-          "Punktkarte",
-          leafletOutput("accidentMap", height = "80vh"),
-          textOutput("sourceInfo")
-        ),
-        tabPanel(
-          "Heatmap",
-          leafletOutput("heatMap", height = "80vh"),
-          textOutput("heatmapSourceInfo")
-        ),
-        tabPanel(
-          "Rasterkarte",
-          leafletOutput("gridMap", height = "80vh"),
-          textOutput("gridMapSourceInfo")
-        ),
-        tabPanel(
-          "Kontakt",
-          fluidPage(
-            titlePanel("Kontakt und Informationen"),
-            fluidRow(
-              column(
-                width = 6,
-                h3("Robert Hofmann"),
-                p("Sprecher ADFC Mannheim"),
-                p("Email: Robert.Hofmann [at] adfc-bw.de")
-              ),
-              column(
-                width = 6,
-                h3("Arne Warnke"),
-                p("ADFC Mannheim"),
-                p("Email: arne.warnke [at] adfc-bw.de")
-              )
-            ),
-            hr(),
-            h3("Über dieses Projekt"),
-            p("Diese interaktive Karte zeigt Unfalldaten mit Radfahrerbeteiligung in Mannheim."),
-            p("Ziel ist es, mit Hilfe von offenen Daten die Transparenz zu fördern, städtische Planungen zu unterstützen und zur Verkehrssicherheit im Sinne von Vision Zero beizutragen."),
-            p("Die Anwendung wurde vom ADFC Mannheim entwickelt – auf ehrenamtlicher Basis."),
-            p("Quelle ist die Unfallstatistik des Statistischen Bundesamtes."),
-            p("Weitere Informationen zur Unfallverhütung durch den ADFC Mannheim finden Sie hier:"),
-            tags$a(
-              href = "https://mannheim.adfc.de/artikel/unfallverhuetung-als-zentrale-aufgabe-des-adfc-mannheim",
-              "Unfallverhütung als zentrale Aufgabe des ADFC Mannheim",
-              target = "_blank"
-            ),
-            br(), br(),
-            p("Der Quellcode ist öffentlich zugänglich auf GitHub:"),
-            tags$a(
-              href = "https://github.com/AJWarnke/adfc",
-              "https://github.com/AJWarnke/adfc",
-              target = "_blank"
+  dashboardBody(
+    tabItems(
+      # Karte
+      tabItem(
+        tabName = "map",
+        leafletOutput("site_map", height = 700)
+      ),
+      
+      # Standort Analysis
+      tabItem(
+        tabName = "standort_analysis",
+        fluidRow(
+          column(
+            width = 4,
+            selectInput(
+              "analysis_standort",
+              "Standort auswählen:",
+              choices = NULL,
+              selected = NULL
             )
           )
         ),
-        tabPanel(
-          "Liste tödlicher Radunfälle",
-          fluidPage(
-            h3("Tödliche Unfälle - Übersicht"),
-            downloadButton("downloadDeadlyAccidents", "Download als CSV"),
+        fluidRow(
+          column(
+            width = 12,
+            tabsetPanel(
+              tabPanel(
+                "Jahreswerte",
+                plotOutput("analysis_barplot", height = 500)
+              ),
+              tabPanel(
+                "Quartalsverlauf",
+                plotOutput("analysis_quarter_ts", height = 500)
+              ),
+              tabPanel(
+                "Monatsverlauf",
+                plotOutput("analysis_month_ts", height = 500)
+              )
+            )
+          )
+        )
+      ),
+      
+      # Cumulative Comparison
+      tabItem(
+        tabName = "cumulative",
+        fluidRow(
+          column(
+            width = 4,
+            selectInput(
+              "cumulative_standort",
+              "Standort auswählen:",
+              choices = NULL,
+              selected = NULL
+            )
+          )
+        ),
+        fluidRow(
+          column(
+            width = 12,
+            plotlyOutput("cumulative_plot", height = 700)  # Changed from plotOutput
+          )
+        )
+      ),
+      
+      
+      # Raw Data Explorer
+      tabItem(
+        tabName = "raw_data",
+        fluidRow(
+          column(
+            width = 4,
+            selectInput(
+              "raw_standort",
+              "Standort auswählen:",
+              choices = NULL,
+              selected = NULL
+            )
+          ),
+          column(
+            width = 4,
+            dateRangeInput(
+              "raw_daterange",
+              "Zeitraum auswählen:",
+              start = NULL,
+              end = NULL,
+              language = "de",
+              separator = "bis"
+            )
+          )
+        ),
+        fluidRow(
+          column(
+            width = 12,
+            plotOutput("raw_timeseries", height = 600)
+          )
+        )
+      ),
+      
+      # NEW: Monthly Overview Table
+      tabItem(
+        tabName = "monthly_table",
+        fluidRow(
+          column(
+            width = 12,
+            h3("Summe der Radfahrenden nach Standort und Monat (letzte 24 Monate)"),
+            downloadButton("downloadMonthlyTable", "Download als CSV"),
             br(), br(),
-            DTOutput("deadlyAccidentsTable")
+            DTOutput("monthlyStationTable")
           )
         )
       )
