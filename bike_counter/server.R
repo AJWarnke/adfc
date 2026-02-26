@@ -46,6 +46,7 @@ server <- function(input, output, session) {
     q_avg$quarter_start <- as.Date(paste0(q_avg$year, "-", (q_avg$quarter - 1) * 3 + 1, "-01"))
     q_avg$date_mid <- q_avg$quarter_start + 45
     q_avg <- q_avg[order(q_avg$date_mid),]
+    
     plot(
       q_avg$date_mid,
       q_avg$counter,
@@ -54,9 +55,15 @@ server <- function(input, output, session) {
       ylab = "Radfahrer pro Quartal",
       main = title,
       col = "darkred",
-      pch = 19
+      pch = 19,
+      xaxt = "n"  # Suppress default x-axis
     )
+    
+    # Create custom labels with Q1-Q4
+    quarter_labels <- paste0(q_avg$year, " Q", q_avg$quarter)
+    axis(1, at = q_avg$date_mid, labels = quarter_labels, las = 2, cex.axis = 0.8)
   }
+  
   
   plot_month_ts <- function(df, title) {
     df$date <- as.POSIXct(df$date)
@@ -134,6 +141,12 @@ server <- function(input, output, session) {
     standort_choices <- unique(bike_counter$Standort)
     updateSelectInput(session, "cumulative_standort", choices = standort_choices)
   })
+  
+  observe({
+    standortchoices <- unique(bike_counter$Standort)
+    updateSelectInput(session, "last14_station", choices = standortchoices)
+  })
+  
   
   output$cumulative_plot <- renderPlotly({
     req(input$cumulative_standort)
@@ -242,6 +255,215 @@ server <- function(input, output, session) {
     
     return(fig)
   })
+  
+  # ---- Cumulative Year Comparison (Partial - up to most recent day - 1) ----
+  observe({
+    standort_choices <- unique(bike_counter$Standort)
+    updateSelectInput(session, "cumulative_partial_standort", choices = standort_choices)
+  })
+  
+  output$cumulative_partial_plot <- renderPlotly({
+    req(input$cumulative_partial_standort)
+    
+    df_standort <- subset(bike_counter, Standort == input$cumulative_partial_standort)
+    df_standort$date <- as.POSIXct(df_standort$date)
+    df_standort$year <- lubridate::year(df_standort$date)
+    df_standort$day_of_year <- lubridate::yday(df_standort$date)
+    
+    if (nrow(df_standort) == 0) {
+      return(NULL)
+    }
+    
+    df_standort <- df_standort[!is.na(df_standort$counter), ]
+    
+    # Find the most recent date and its day-of-year, then subtract 1
+    max_date <- max(df_standort$date, na.rm = TRUE)
+    max_doy <- lubridate::yday(max_date) - 1L
+    
+    if (max_doy < 1) max_doy <- 1
+    
+    # Filter: keep only days up to max_doy for all years
+    df_filtered <- df_standort[df_standort$day_of_year <= max_doy, ]
+    
+    daily_sums <- aggregate(
+      counter ~ year + day_of_year,
+      data = df_filtered,
+      FUN = sum,
+      na.rm = TRUE
+    )
+    
+    years <- sort(unique(daily_sums$year))
+    
+    if (length(years) == 0) {
+      return(NULL)
+    }
+    
+    # Calculate cumulative sums per year
+    year_totals <- numeric(length(years))
+    for (i in seq_along(years)) {
+      year_data <- daily_sums[daily_sums$year == years[i], ]
+      year_data <- year_data[order(year_data$day_of_year), ]
+      daily_sums$cumulative[daily_sums$year == years[i]] <- cumsum(year_data$counter)
+      year_totals[i] <- max(cumsum(year_data$counter))
+    }
+    
+    # Order years by total (highest first)
+    year_order <- order(-year_totals)
+    ordered_years <- years[year_order]
+    
+    # Create plotly figure
+    fig <- plot_ly()
+    
+    # Add a line for each year
+    for (i in seq_along(ordered_years)) {
+      year <- ordered_years[i]
+      year_data <- daily_sums[daily_sums$year == year, ]
+      year_data <- year_data[order(year_data$day_of_year), ]
+      
+      if (nrow(year_data) > 0) {
+        fig <- fig %>%
+          add_trace(
+            data = year_data,
+            x = ~day_of_year,
+            y = ~cumulative,
+            type = 'scatter',
+            mode = 'lines',
+            name = as.character(year),
+            line = list(width = 2),
+            hovertemplate = paste0(
+              "Jahr: ", year, "<br>",
+              "Tag: %{x}<br>",
+              "Kumuliert: %{y:,.0f}",
+              "<extra></extra>"
+            )
+          )
+      }
+    }
+    
+    # Month labels for x-axis (up to max_doy)
+    month_starts <- c(1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335)
+    month_names <- c("Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+                     "Jul", "Aug", "Sep", "Okt", "Nov", "Dez")
+    
+    # Only show month ticks up to max_doy
+    visible_months <- month_starts[month_starts <= max_doy]
+    visible_names <- month_names[month_starts <= max_doy]
+    
+    # Layout
+    fig <- fig %>%
+      layout(
+        title = paste0(
+          "Jahresvergleich kumulativ (bis Tag ", max_doy, ") - ",
+          input$cumulative_partial_standort
+        ),
+        xaxis = list(
+          title = "Tag des Jahres",
+          tickmode = "array",
+          tickvals = visible_months,
+          ticktext = visible_names,
+          range = c(1, max_doy)
+        ),
+        yaxis = list(
+          title = "Kumulierte Summe der Radfahrer",
+          separatethousands = TRUE
+        ),
+        hovermode = "closest",
+        legend = list(
+          title = list(text = "Jahr"),
+          orientation = "v",
+          x = 0.02,
+          y = 0.98,
+          bgcolor = "rgba(255, 255, 255, 0.8)",
+          bordercolor = "gray",
+          borderwidth = 1
+        ),
+        plot_bgcolor = "#f5f5f5",
+        paper_bgcolor = "white"
+      ) %>%
+      config(
+        displayModeBar = TRUE,
+        modeBarButtonsToRemove = c("lasso2d", "select2d", "autoScale2d"),
+        displaylogo = FALSE
+      )
+    
+    return(fig)
+  })
+  
+  # ---- Cumulative Year Comparison (Partial - Bar Chart) ----
+  observe({
+    standort_choices <- unique(bike_counter$Standort)
+    updateSelectInput(session, "cumulative_bar_standort", choices = standort_choices)
+  })
+  
+  output$cumulative_bar_plot <- renderPlotly({
+    req(input$cumulative_bar_standort)
+    
+    df_standort <- subset(bike_counter, Standort == input$cumulative_bar_standort)
+    df_standort$date <- as.POSIXct(df_standort$date)
+    df_standort$year <- lubridate::year(df_standort$date)
+    df_standort$day_of_year <- lubridate::yday(df_standort$date)
+    
+    if (nrow(df_standort) == 0) return(NULL)
+    
+    df_standort <- df_standort[!is.na(df_standort$counter), ]
+    
+    # Find the most recent date and its day-of-year, then subtract 1
+    max_date <- max(df_standort$date, na.rm = TRUE)
+    max_doy <- lubridate::yday(max_date) - 1L
+    if (max_doy < 1) max_doy <- 1
+    
+    # Filter: keep only days up to max_doy for all years
+    df_filtered <- df_standort[df_standort$day_of_year <= max_doy, ]
+    
+    # Aggregate total per year (sum up to max_doy)
+    year_sums <- aggregate(counter ~ year, data = df_filtered, FUN = sum, na.rm = TRUE)
+    
+    # Order by year ascending
+    year_sums <- year_sums[order(year_sums$year), ]
+    year_sums$year <- as.character(year_sums$year)
+    
+    # Highlight most recent year
+    current_year <- as.character(lubridate::year(max_date))
+    bar_colors <- ifelse(year_sums$year == current_year, "#e07b00", "steelblue")
+    
+    fig <- plot_ly(
+      data = year_sums,
+      x = ~year,
+      y = ~counter,
+      type = "bar",
+      marker = list(color = bar_colors),
+      hovertemplate = paste0(
+        "Jahr: %{x}<br>",
+        "Kumuliert (bis Tag ", max_doy, "): %{y:,.0f}",
+        "<extra></extra>"
+      )
+    ) %>%
+      layout(
+        title = paste0(
+          "Jahresvergleich kumulativ (bis Tag ", max_doy, ") - ",
+          input$cumulative_bar_standort
+        ),
+        xaxis = list(
+          title = "Jahr",
+          type = "category"
+        ),
+        yaxis = list(
+          title = "Kumulierte Summe der Radfahrer",
+          separatethousands = TRUE
+        ),
+        hovermode = "closest",
+        plot_bgcolor  = "#f5f5f5",
+        paper_bgcolor = "white"
+      ) %>%
+      config(
+        displayModeBar = TRUE,
+        modeBarButtonsToRemove = c("lasso2d", "select2d", "autoScale2d"),
+        displaylogo = FALSE
+      )
+    
+    return(fig)
+  })
+  
   
   # ---- Raw Data Explorer ----
   observe({
@@ -415,5 +637,182 @@ server <- function(input, output, session) {
       write.csv(wide_table, file, row.names = FALSE, fileEncoding = "UTF-8")
     }
   )
+  
+  # ---- Monthly Barchart (Monatsbalken) ----
+  observe({
+    standort_choices <- unique(bike_counter$Standort)
+    updateSelectInput(session, "monthly_bar_standort", choices = standort_choices)
+  })
+  
+  output$monthly_bar_plot <- renderPlotly({
+    req(input$monthly_bar_standort)
+    
+    df <- subset(bike_counter, Standort == input$monthly_bar_standort)
+    df$date <- as.Date(df$date)
+    
+    # Determine the cutoff: most recent day in the data (minus 1 for incomplete day)
+    max_date <- max(df$date, na.rm = TRUE)
+    cutoff_day <- as.integer(format(max_date, "%d")) - 1L   # last complete day-of-month
+    cutoff_month <- as.integer(format(max_date, "%m"))      # the "partial" month number
+    
+    df$year  <- lubridate::year(df$date)
+    df$month <- lubridate::month(df$date)
+    df$dom   <- as.integer(format(df$date, "%d"))           # day-of-month
+    
+    # For the partial month: keep only days <= cutoff_day across ALL years
+    # For all other months: keep everything
+    df_filtered <- df[
+      !(df$month == cutoff_month & df$dom > cutoff_day),
+    ]
+    
+    # Aggregate monthly sums
+    m_sum <- aggregate(counter ~ year + month, data = df_filtered, FUN = sum, na.rm = TRUE)
+    m_sum$year  <- as.character(m_sum$year)
+    m_sum$month_label <- factor(
+      month.abb[m_sum$month],
+      levels = month.abb   # Jan … Dec order
+    )
+    
+    # Annotation for the partial month
+    partial_label <- paste0(
+      month.abb[cutoff_month], " (bis ", cutoff_day, ". des Monats)"
+    )
+    
+    fig <- plot_ly(
+      data = m_sum,
+      x = ~month_label,
+      y = ~counter,
+      color = ~year,
+      type = "bar",
+      hovertemplate = paste0(
+        "Jahr: %{legendgroup}<br>",
+        "Monat: %{x}<br>",
+        "Summe: %{y:,.0f}<extra></extra>"
+      )
+    ) %>%
+      layout(
+        barmode = "group",
+        title = paste(
+          "Monatssummen –", input$monthly_bar_standort,
+          "<br><sup>", month.abb[cutoff_month],
+          "nur bis zum", cutoff_day, ". des Monats (alle Jahre)</sup>"
+        ),
+        xaxis = list(title = "Monat"),
+        yaxis = list(
+          title = "Summe Radfahrende",
+          separatethousands = TRUE
+        ),
+        legend = list(title = list(text = "Jahr")),
+        hovermode = "closest",
+        plot_bgcolor  = "#f5f5f5",
+        paper_bgcolor = "white"
+      ) %>%
+      config(
+        displayModeBar = TRUE,
+        modeBarButtonsToRemove = c("lasso2d", "select2d", "autoScale2d"),
+        displaylogo = FALSE
+      )
+    
+    return(fig)
+  })
+  
+  
+  output$last14_plot <- renderPlot({
+    req(input$last14_station)
+    
+    # Filter for selected station
+    df_station <- subset(bike_counter, Standort == input$last14_station)
+    if (nrow(df_station) == 0) return(NULL)
+    
+    # Work on Date
+    df_station$date <- as.Date(df_station$date)
+    
+    # Add year and day-of-year
+    df_station$year <- lubridate::year(df_station$date)
+    df_station$day_of_year <- lubridate::yday(df_station$date)
+    
+    # Aggregate to daily sums per date and year
+    daily_all <- aggregate(
+      counter ~ year + date + day_of_year,
+      data = df_station,
+      FUN = sum,
+      na.rm = TRUE
+    )
+    
+    years <- sort(unique(daily_all$year), decreasing = TRUE)
+    if (length(years) == 0) return(NULL)
+    
+    # For each year: last available day minus 1, and 13 days before that
+    plot_list <- list()
+    for (y in years) {
+      yr_data <- daily_all[daily_all$year == y, ]
+      if (nrow(yr_data) == 0) next
+      
+      last_date_y <- max(yr_data$date, na.rm = TRUE)
+      last_complete_y <- last_date_y - 1L
+      start_y <- last_complete_y - 13L
+      
+      win_y <- yr_data[yr_data$date >= start_y & yr_data$date <= last_complete_y, ]
+      if (nrow(win_y) == 0) next
+      
+      # Index 1..14 within that year's window
+      win_y$day_index <- as.integer(win_y$date - start_y) + 1L
+      plot_list[[as.character(y)]] <- win_y
+    }
+    
+    if (length(plot_list) == 0) return(NULL)
+    
+    # Order years by the value on the latest day (largest day_index) descending
+    year_stats <- lapply(names(plot_list), function(y) {
+      d <- plot_list[[y]]
+      d <- d[order(d$day_index), ]
+      last_row <- d[d$day_index == max(d$day_index), ]
+      data.frame(
+        year = y,
+        last_value = max(last_row$counter, na.rm = TRUE)
+      )
+    })
+    year_stats <- do.call(rbind, year_stats)
+    year_stats <- year_stats[order(-year_stats$last_value), ]
+    ordered_years <- year_stats$year
+    
+    # Common y-axis limit
+    max_y <- max(vapply(plot_list, function(d) max(d$counter, na.rm = TRUE), numeric(1)))
+    
+    par(mar = c(5, 6, 4, 2) + 0.1)
+    plot(
+      NA, NA,
+      xlim = c(1, 14),
+      ylim = c(0, max_y),
+      xlab = "Tag im 14-Tage-Fenster",
+      ylab = "Summe Radfahrende pro Tag",
+      main = paste(
+        "Letzte verfügbaren 14 Tage (minus 1 Tag) –",
+        input$last14_station
+      ),
+      xaxt = "n"
+    )
+    
+    axis(1, at = 1:14, labels = 1:14)
+    
+    cols <- rainbow(length(ordered_years))
+    
+    for (i in seq_along(ordered_years)) {
+      y <- ordered_years[i]
+      d <- plot_list[[y]][order(plot_list[[y]]$day_index), ]
+      lines(d$day_index, d$counter, type = "b", col = cols[i], pch = 19)
+    }
+    
+    legend(
+      "topleft",
+      legend = ordered_years,
+      col = cols,
+      lty = 1,
+      pch = 19,
+      title = "Jahr",
+      bg = "white"
+    )
+  })
+  
   
 }

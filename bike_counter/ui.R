@@ -4,6 +4,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Radzählstellen", tabName = "map", icon = icon("bicycle")),
       menuItem("Standort-Analyse", tabName = "standort_analysis", icon = icon("chart-column")),
+      menuItem("Letzte 14 Tage", tabName = "last14days", icon = icon("calendar-day")),
       menuItem("Jahresvergleich Kumulativ", tabName = "cumulative", icon = icon("line-chart")),
       menuItem("Rohdaten Explorer", tabName = "raw_data", icon = icon("line-chart")),
       menuItem("Monatsübersicht", tabName = "monthly_table", icon = icon("table"))  # NEW
@@ -52,15 +53,14 @@ ui <- dashboardPage(
         )
       ),
       
-      # Cumulative Comparison
       tabItem(
-        tabName = "cumulative",
+        tabName = "last14days",
         fluidRow(
           column(
             width = 4,
             selectInput(
-              "cumulative_standort",
-              "Standort auswählen:",
+              "last14_station",
+              "Standort auswählen",
               choices = NULL,
               selected = NULL
             )
@@ -69,10 +69,79 @@ ui <- dashboardPage(
         fluidRow(
           column(
             width = 12,
-            plotlyOutput("cumulative_plot", height = 700)  # Changed from plotOutput
+            plotOutput("last14_plot", height = 600)
           )
         )
       ),
+      
+      # Cumulative Comparison
+      tabItem(
+        tabName = "cumulative",
+        tabsetPanel(
+          tabPanel(
+            "Gesamtes Jahr",
+            fluidRow(
+              column(
+                width = 4,
+                selectInput(
+                  "cumulative_standort",
+                  "Standort auswählen:",
+                  choices = NULL,
+                  selected = NULL
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                plotlyOutput("cumulative_plot", height = 700)
+              )
+            )
+          ),
+          tabPanel(
+            "Bis aktueller Tag",
+            fluidRow(
+              column(
+                width = 4,
+                selectInput(
+                  "cumulative_partial_standort",
+                  "Standort auswählen:",
+                  choices = NULL,
+                  selected = NULL
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                plotlyOutput("cumulative_partial_plot", height = 700)
+              )
+            )
+          ),
+          tabPanel(
+            "Jahresvergleich Balken",
+            fluidRow(
+              column(
+                width = 4,
+                selectInput(
+                  "cumulative_bar_standort",
+                  "Standort auswählen:",
+                  choices = NULL,
+                  selected = NULL
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                plotlyOutput("cumulative_bar_plot", height = 700)
+              )
+            )
+          )
+          
+        )
+      ),
+      
       
       
       # Raw Data Explorer
@@ -108,16 +177,41 @@ ui <- dashboardPage(
         )
       ),
       
-      # NEW: Monthly Overview Table
+      # NEW: Monthly Overview Table + Barchart
       tabItem(
         tabName = "monthly_table",
-        fluidRow(
-          column(
-            width = 12,
-            h3("Summe der Radfahrenden nach Standort und Monat (letzte 24 Monate)"),
-            downloadButton("downloadMonthlyTable", "Download als CSV"),
-            br(), br(),
-            DTOutput("monthlyStationTable")
+        tabsetPanel(
+          tabPanel(
+            "Tabelle",
+            fluidRow(
+              column(
+                width = 12,
+                h3("Summe der Radfahrenden nach Standort und Monat (letzte 24 Monate)"),
+                downloadButton("downloadMonthlyTable", "Download als CSV"),
+                br(), br(),
+                DTOutput("monthlyStationTable")
+              )
+            )
+          ),
+          tabPanel(
+            "Monatsbalken",
+            fluidRow(
+              column(
+                width = 4,
+                selectInput(
+                  "monthly_bar_standort",
+                  "Standort auswählen:",
+                  choices = NULL,
+                  selected = NULL
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                plotlyOutput("monthly_bar_plot", height = 600)
+              )
+            )
           )
         )
       )
