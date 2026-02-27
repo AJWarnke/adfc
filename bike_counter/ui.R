@@ -2,22 +2,41 @@ ui <- dashboardPage(
   dashboardHeader(title = "BikeCounter Mannheim"),
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Radzählstellen", tabName = "map", icon = icon("bicycle")),
-      menuItem("Standort-Analyse", tabName = "standort_analysis", icon = icon("chart-column")),
-      menuItem("Letzte 14 Tage", tabName = "last14days", icon = icon("calendar-day")),
+      menuItem("Radzählstellen",     tabName = "map",               icon = icon("bicycle")),
+      menuItem("Standort-Analyse",   tabName = "standort_analysis", icon = icon("chart-column")),
+      menuItem("Letzte 14 Tage",     tabName = "last14days",        icon = icon("calendar-day")),
       menuItem("Jahresvergleich Kumulativ", tabName = "cumulative", icon = icon("line-chart")),
-      menuItem("Rohdaten Explorer", tabName = "raw_data", icon = icon("line-chart")),
-      menuItem("Monatsübersicht", tabName = "monthly_table", icon = icon("table"))  # NEW
+      menuItem("Rohdaten Explorer",  tabName = "raw_data",          icon = icon("line-chart")),
+      menuItem("Monatsübersicht",    tabName = "monthly_table",     icon = icon("table")),
+      menuItem("Übersicht",          tabName = "overview",          icon = icon("info-circle"))
     )
   ),
   dashboardBody(
     tabItems(
+
+      # ---- Übersicht ----
+      tabItem(
+        tabName = "overview",
+        fluidRow(
+          valueBoxOutput("overview_n_standorte", width = 4),
+          valueBoxOutput("overview_latest_obs",  width = 4),
+          valueBoxOutput("overview_total_obs",   width = 4)
+        ),
+        fluidRow(
+          column(
+            width = 12,
+            h3("Standorte im Datensatz"),
+            DTOutput("overview_standort_table")
+          )
+        )
+      ),
+
       # Karte
       tabItem(
         tabName = "map",
         leafletOutput("site_map", height = 700)
       ),
-      
+
       # Standort Analysis
       tabItem(
         tabName = "standort_analysis",
@@ -52,7 +71,7 @@ ui <- dashboardPage(
           )
         )
       ),
-      
+
       tabItem(
         tabName = "last14days",
         fluidRow(
@@ -73,7 +92,7 @@ ui <- dashboardPage(
           )
         )
       ),
-      
+
       # Cumulative Comparison
       tabItem(
         tabName = "cumulative",
@@ -138,12 +157,9 @@ ui <- dashboardPage(
               )
             )
           )
-          
         )
       ),
-      
-      
-      
+
       # Raw Data Explorer
       tabItem(
         tabName = "raw_data",
@@ -176,8 +192,8 @@ ui <- dashboardPage(
           )
         )
       ),
-      
-      # NEW: Monthly Overview Table + Barchart
+
+      # Monthly Overview Table + Barchart
       tabItem(
         tabName = "monthly_table",
         tabsetPanel(

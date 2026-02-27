@@ -1,4 +1,63 @@
 server <- function(input, output, session) {
+
+  # ---- Übersicht ----
+
+  output$overview_n_standorte <- renderValueBox({
+    n <- length(unique(bike_counter$Standort))
+    valueBox(
+      value    = n,
+      subtitle = "Anzahl Standorte",
+      icon     = icon("map-marker"),
+      color    = "blue"
+    )
+  })
+
+  output$overview_latest_obs <- renderValueBox({
+    latest <- max(as.Date(bike_counter$date), na.rm = TRUE)
+    valueBox(
+      value    = format(latest, "%d.%m.%Y %H:%M"),
+      subtitle = "Letzte Beobachtung",
+      icon     = icon("calendar-check"),
+      color    = "green"
+    )
+  })
+
+  output$overview_total_obs <- renderValueBox({
+    n <- format(nrow(bike_counter), big.mark = ".", decimal.mark = ",")
+    valueBox(
+      value    = n,
+      subtitle = "Gesamte Datensätze",
+      icon     = icon("database"),
+      color    = "purple"
+    )
+  })
+
+  output$overview_standort_table <- renderDT({
+    df_summary <- bike_counter %>%
+      group_by(Standort) %>%
+      summarise(
+        `Erste Beobachtung`  = format(min(as.Date(date), na.rm = TRUE), "%d.%m.%Y"),
+        `Letzte Beobachtung` = format(max(as.Date(date), na.rm = TRUE), "%d.%m.%Y"),
+        `Anzahl Datensätze`  = n(),
+        .groups = "drop"
+      ) %>%
+      arrange(Standort)
+
+    datatable(
+      df_summary,
+      rownames = FALSE,
+      options  = list(
+        pageLength  = 25,
+        dom         = "ft",
+        language    = list(search = "Suchen"),
+        scrollX     = TRUE
+      ),
+      class = "cell-border stripe compact"
+    ) %>%
+      formatStyle("Standort", fontWeight = "bold")
+  })
+
+
   
   # ---- Karte ----
   output$site_map <- renderLeaflet({
