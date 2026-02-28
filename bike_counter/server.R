@@ -630,10 +630,11 @@ plot_list <- list()
 for (y in years) {
 yr_data <- daily_all[daily_all$year == y, ]
 if (nrow(yr_data) == 0) next
-last_date_y <- max(yr_data$date, na.rm = TRUE)
-last_complete_y <- last_date_y - 1L
-start_y <- last_complete_y - 13L
-win_y <- yr_data[yr_data$date >= start_y & yr_data$date <= last_complete_y, ]
+last_date_y     <- max(yr_data$date, na.rm = TRUE)
+last_complete_y <- last_date_y        # statt: last_date_y - 1L
+start_y         <- last_complete_y - 13L
+win_y           <- yr_data[yr_data$date >= start_y & yr_data$date <= last_complete_y, ]
+
 if (nrow(win_y) == 0) next
 win_y$day_index <- as.integer(win_y$date - start_y) + 1L
 plot_list[[as.character(y)]] <- win_y
@@ -651,16 +652,37 @@ year_stats <- do.call(rbind, year_stats)
 year_stats <- year_stats[order(-year_stats$last_value), ]
 ordered_years <- year_stats$year
 
-max_y <- max(vapply(plot_list, function(d) max(d$counter, na.rm = TRUE), numeric(1)))
+    max_y <- max(vapply(plot_list, function(d) max(d$counter, na.rm = TRUE), numeric(1)))
+    
+    # Extract actual dates for the x-axis labels from the most recent year
+    # ordered_years[1] should be the most recent year (e.g., 2026)
+    latest_year_data <- plot_list[[ordered_years[1]]]
+    latest_year_data <- latest_year_data[order(latest_year_data$day_index), ]
+    
+    # Create labels like "1\n(14.02.)"
+    x_labels <- sapply(1:14, function(i) {
+      row <- latest_year_data[latest_year_data$day_index == i, ]
+      if (nrow(row) > 0) {
+        date_str <- format(as.Date(row$date), "%d.%m.")
+        paste0(i, "\n", date_str)
+      } else {
+        as.character(i)
+      }
+    })
+    
+    # Increase bottom margin to fit two-line labels
+    par(mar = c(6, 6, 4, 2) + 0.1)
+    plot(NA, NA,
+         xlim = c(1, 14), ylim = c(0, max_y),
+         xlab = "", # Removed xlab since labels convey meaning, and we need space
+         ylab = "Summe Radfahrende pro Tag",
+         main = paste("Letzte verfügbaren 14 Tage –", input$last14_station),
+         xaxt = "n")
+    
+    # Add custom axis with padded lines
+    axis(1, at = 1:14, labels = x_labels, padj = 0.5)
+    mtext("Tag im 14-Tage-Fenster (mit Datum des akt. Jahres)", side = 1, line = 4)
 
-par(mar = c(5, 6, 4, 2) + 0.1)
-plot(NA, NA,
-xlim = c(1, 14), ylim = c(0, max_y),
-xlab = "Tag im 14-Tage-Fenster",
-ylab = "Summe Radfahrende pro Tag",
-main = paste("Letzte verfügbaren 14 Tage (minus 1 Tag) –", input$last14_station),
-xaxt = "n")
-axis(1, at = 1:14, labels = 1:14)
 
 cols <- rainbow(length(ordered_years))
 for (i in seq_along(ordered_years)) {
