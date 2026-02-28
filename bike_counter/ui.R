@@ -8,7 +8,8 @@ ui <- dashboardPage(
       menuItem("Jahresvergleich Kumulativ", tabName = "cumulative", icon = icon("line-chart")),
       menuItem("Rohdaten Explorer",  tabName = "raw_data",          icon = icon("line-chart")),
       menuItem("Monatsübersicht",    tabName = "monthly_table",     icon = icon("table")),
-      menuItem("Übersicht",          tabName = "overview",          icon = icon("info-circle"))
+      menuItem("Übersicht",          tabName = "overview",          icon = icon("info-circle")),
+      menuItem("Job Status", tabName = "job_status", icon = icon("server"))
     )
   ),
   dashboardBody(
@@ -228,6 +229,20 @@ ui <- dashboardPage(
                 plotlyOutput("monthly_bar_plot", height = 600)
               )
             )
+          )
+        )
+      ),
+      
+      # Or as a standalone tab:
+      tabItem(
+        tabName = "job_status",
+        fluidRow(
+          box(
+            title       = "Databricks Job – letzter Lauf",
+            width       = 6,
+            solidHeader = TRUE,
+            status      = "primary",
+            uiOutput("job_status_table")
           )
         )
       )
