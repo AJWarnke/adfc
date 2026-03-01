@@ -745,4 +745,120 @@ output$job_status_table <- renderUI({
 })
 
 
+
+# ---- Stationsvergleich (alle Standorte nebeneinander) ----
+output$station_compare_plot <- renderPlotly({
+  req(input$compare_daterange)
+
+  df <- bike_counter
+  df$date <- as.Date(df$date)
+
+  df_filtered <- df[
+    df$date >= input$compare_daterange[1] &
+    df$date <= input$compare_daterange[2], ]
+
+  if (nrow(df_filtered) == 0) {
+    return(
+      plotly_empty() %>%
+        plotly::layout(title = "Keine Daten für den ausgewählten Zeitraum")
+    )
+  }
+
+  date_label <- paste0(
+    format(input$compare_daterange[1], "%d.%m.%Y"),
+    " – ",
+    format(input$compare_daterange[2], "%d.%m.%Y")
+  )
+
+  agg <- input$compare_aggregation
+
+  if (agg == "total") {
+
+    df_agg <- aggregate(counter ~ Standort, data = df_filtered,
+                        FUN = sum, na.rm = TRUE)
+    df_agg <- df_agg[order(-df_agg$counter), ]
+    df_agg$Standort <- factor(df_agg$Standort, levels = df_agg$Standort)
+
+    fig <- plot_ly(
+      data = df_agg,
+      x    = ~Standort,
+      y    = ~counter,
+      type = "bar",
+      marker = list(color = "steelblue"),
+      hovertemplate = "Standort: %{x}<br>Summe: %{y:,.0f}<extra></extra>"
+    )
+
+    fig <- plotly::layout(
+      fig,
+      title  = paste0("Stationsvergleich: ", date_label),
+      xaxis  = list(title = "Standort", tickangle = -40),
+      yaxis  = list(title = "Summe Radfahrende", separatethousands = TRUE),
+      plot_bgcolor  = "#f5f5f5",
+      paper_bgcolor = "white"
+    )
+
+  } else if (agg == "year") {
+
+    df_filtered$year <- as.character(lubridate::year(df_filtered$date))
+    df_agg <- aggregate(counter ~ Standort + year,
+                        data = df_filtered, FUN = sum, na.rm = TRUE)
+
+    fig <- plot_ly(
+      data  = df_agg,
+      x     = ~Standort,
+      y     = ~counter,
+      color = ~year,
+      type  = "bar",
+      hovertemplate = "Standort: %{x}<br>Summe: %{y:,.0f}<extra></extra>"
+    )
+
+    fig <- plotly::layout(
+      fig,
+      barmode = "group",
+      title   = paste0("Stationsvergleich nach Jahr: ", date_label),
+      xaxis   = list(title = "Standort", tickangle = -40),
+      yaxis   = list(title = "Summe Radfahrende", separatethousands = TRUE),
+      legend  = list(title = list(text = "Jahr")),
+      plot_bgcolor  = "#f5f5f5",
+      paper_bgcolor = "white"
+    )
+
+  } else {  # month
+
+    df_filtered$period <- format(df_filtered$date, "%Y-%m")
+    df_agg <- aggregate(counter ~ Standort + period,
+                        data = df_filtered, FUN = sum, na.rm = TRUE)
+    df_agg <- df_agg[order(df_agg$period), ]
+
+    fig <- plot_ly(
+      data  = df_agg,
+      x     = ~Standort,
+      y     = ~counter,
+      color = ~period,
+      type  = "bar",
+      hovertemplate = "Standort: %{x}<br>Monat: %{legendgroup}<br>Summe: %{y:,.0f}<extra></extra>"
+    )
+
+    fig <- plotly::layout(
+      fig,
+      barmode = "group",
+      title   = paste0("Stationsvergleich nach Monat: ", date_label),
+      xaxis   = list(title = "Standort", tickangle = -40),
+      yaxis   = list(title = "Summe Radfahrende", separatethousands = TRUE),
+      legend  = list(title = list(text = "Monat")),
+      plot_bgcolor  = "#f5f5f5",
+      paper_bgcolor = "white"
+    )
+  }
+
+  fig <- plotly::config(
+    fig,
+    displayModeBar        = TRUE,
+    modeBarButtonsToRemove = c("lasso2d", "select2d", "autoScale2d"),
+    displaylogo           = FALSE
+  )
+
+  return(fig)
+})
+
 }

@@ -8,6 +8,7 @@ ui <- dashboardPage(
       menuItem("Jahresvergleich Kumulativ", tabName = "cumulative", icon = icon("line-chart")),
       menuItem("Rohdaten Explorer",  tabName = "raw_data",          icon = icon("line-chart")),
       menuItem("Monatsübersicht",    tabName = "monthly_table",     icon = icon("table")),
+      menuItem("Stationsvergleich", tabName = "station_compare", icon = icon("chart-bar")),
       menuItem("Übersicht",          tabName = "overview",          icon = icon("info-circle")),
       menuItem("Job Status", tabName = "job_status", icon = icon("server"))
     )
@@ -191,6 +192,28 @@ ui <- dashboardPage(
             width = 12,
             plotOutput("raw_timeseries", height = 600)
           )
+        )
+      ),
+      
+      # Stationsvergleich
+      tabItem(
+        tabName = "station_compare",
+        fluidRow(
+          column(width = 4,
+                 dateRangeInput("compare_daterange", "Zeitraum auswählen:",
+                                start = Sys.Date() - 365, end = Sys.Date() - 1,
+                                language = "de", separator = "bis")
+          ),
+          column(width = 4,
+                 radioButtons("compare_aggregation", "Aggregation:",
+                              choices = c("Gesamt" = "total",
+                                          "Nach Jahr" = "year",
+                                          "Nach Monat" = "month"),
+                              selected = "total", inline = TRUE)
+          )
+        ),
+        fluidRow(
+          column(width = 12, plotlyOutput("station_compare_plot", height = 620))
         )
       ),
 
