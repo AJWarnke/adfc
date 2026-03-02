@@ -279,6 +279,8 @@ max_date <- max(df_standort$date, na.rm = TRUE)
 max_doy <- lubridate::yday(max_date) - 1L
 if (max_doy < 1) max_doy <- 1
 
+ref_date_str <- format(as.Date(max_date) - 1, "%d.%m.")
+
 df_filtered <- df_standort[df_standort$day_of_year <= max_doy, ]
 daily_sums <- aggregate(counter ~ year + day_of_year, data = df_filtered,
 FUN = sum, na.rm = TRUE)
@@ -325,7 +327,7 @@ visible_names <- month_names[month_starts <= max_doy]
 
 fig <- plotly::layout(
 fig,
-title = paste0("Jahresvergleich kumulativ (bis Tag ", max_doy, ") - ",
+title = paste0("Jahresvergleich kumulativ (bis Tag ", max_doy, " / ", ref_date_str, ") - ",
 input$cumulative_partial_standort),
 xaxis = list(title = "Tag des Jahres",
 tickmode = "array",
@@ -374,6 +376,8 @@ max_date <- max(df_standort$date, na.rm = TRUE)
 max_doy <- lubridate::yday(max_date) - 1L
 if (max_doy < 1) max_doy <- 1
 
+ref_date_str <- format(as.Date(max_date) - 1, "%d.%m.")
+
 df_filtered <- df_standort[df_standort$day_of_year <= max_doy, ]
 year_sums <- aggregate(counter ~ year, data = df_filtered, FUN = sum, na.rm = TRUE)
 year_sums <- year_sums[order(year_sums$year), ]
@@ -389,13 +393,13 @@ y = ~counter,
 type = "bar",
 marker = list(color = bar_colors),
 hovertemplate = paste0("Jahr: %{x} ",
-"Kumuliert (bis Tag ", max_doy, "): %{y:,.0f} ",
+"Kumuliert (bis Tag ", max_doy, " / ", ref_date_str, "): %{y:,.0f} ",
 "")
 )
 
 fig <- plotly::layout(
 fig,
-title = paste0("Jahresvergleich kumulativ (bis Tag ", max_doy, ") - ",
+title = paste0("Jahresvergleich kumulativ (bis Tag ", max_doy, " / ", ref_date_str, ") - ",
 input$cumulative_bar_standort),
 xaxis = list(title = "Jahr", type = "category"),
 yaxis = list(title = "Kumulierte Summe der Radfahrer",
@@ -623,53 +627,60 @@ df_station$day_of_year <- lubridate::yday(df_station$date)
 daily_all <- aggregate(counter ~ year + date + day_of_year,
 data = df_station, FUN = sum, na.rm = TRUE)
 
-years <- sort(unique(daily_all$year), decreasing = TRUE)
-if (length(years) == 0) return(NULL)
 
-plot_list <- list()
-for (y in years) {
-yr_data <- daily_all[daily_all$year == y, ]
-if (nrow(yr_data) == 0) next
-last_date_y     <- max(yr_data$date, na.rm = TRUE)
-last_complete_y <- last_date_y        # statt: last_date_y - 1L
-start_y         <- last_complete_y - 13L
-win_y           <- yr_data[yr_data$date >= start_y & yr_data$date <= last_complete_y, ]
+  # 1) Find the absolute latest date for this specific station across all years
+  max_date_all <- max(daily_all$date, na.rm = TRUE)
 
-if (nrow(win_y) == 0) next
-win_y$day_index <- as.integer(win_y$date - start_y) + 1L
-plot_list[[as.character(y)]] <- win_y
-}
+  # 2) Define the 14-day window in the most recent year
+  window_dates <- seq(max_date_all - 13L, max_date_all, by = "day")
+  window_md <- format(window_dates, "%m-%d") # The month-day strings we want
 
-if (length(plot_list) == 0) return(NULL)
+  years <- sort(unique(daily_all$year), decreasing = TRUE)
+  if (length(years) == 0) return(NULL)
 
-year_stats <- lapply(names(plot_list), function(y) {
-d <- plot_list[[y]]
-d <- d[order(d$day_index), ]
-last_row <- d[d$day_index == max(d$day_index), ]
-data.frame(year = y, last_value = max(last_row$counter, na.rm = TRUE))
-})
-year_stats <- do.call(rbind, year_stats)
-year_stats <- year_stats[order(-year_stats$last_value), ]
-ordered_years <- year_stats$year
+  plot_list <- list()
+  for (y in years) {
+    yr_data <- daily_all[daily_all$year == y, ]
+    if (nrow(yr_data) == 0) next
 
-    max_y <- max(vapply(plot_list, function(d) max(d$counter, na.rm = TRUE), numeric(1)))
-    
-    # Extract actual dates for the x-axis labels from the most recent year
-    # ordered_years[1] should be the most recent year (e.g., 2026)
-    latest_year_data <- plot_list[[ordered_years[1]]]
-    latest_year_data <- latest_year_data[order(latest_year_data$day_index), ]
-    
-    # Create labels like "1\n(14.02.)"
-    x_labels <- sapply(1:14, function(i) {
-      row <- latest_year_data[latest_year_data$day_index == i, ]
-      if (nrow(row) > 0) {
-        date_str <- format(as.Date(row$date), "%d.%m.")
-        paste0(i, "\n", date_str)
-      } else {
-        as.character(i)
-      }
-    })
-    
+    # We want to match the same Month-Day combinations in the target year
+    # This automatically handles non-leap years (Feb 29 will just be missing)
+    yr_data$md <- format(yr_data$date, "%m-%d")
+
+    # Extract the matching days for this year
+    win_y <- yr_data[yr_data$md %in% window_md, ]
+
+    if (nrow(win_y) == 0) next
+
+    # Map each date to the 1-14 day index corresponding to the window
+    win_y$day_index <- match(win_y$md, window_md)
+    # Remove any NAs (just in case)
+    win_y <- win_y[!is.na(win_y$day_index), ]
+
+    if (nrow(win_y) > 0) {
+      win_y <- win_y[order(win_y$day_index), ]
+      plot_list[[as.character(y)]] <- win_y
+    }
+  }
+
+  if (length(plot_list) == 0) return(NULL)
+
+  # Sort years for the legend by the LAST AVAILABLE DAY in their respective window
+  year_stats <- lapply(names(plot_list), function(y) {
+    d <- plot_list[[y]]
+    d <- d[order(d$day_index), ]
+    last_row <- d[d$day_index == max(d$day_index), ]
+    data.frame(year = y, last_value = max(last_row$counter, na.rm = TRUE))
+  })
+  year_stats <- do.call(rbind, year_stats)
+  year_stats <- year_stats[order(-year_stats$last_value), ]
+  ordered_years <- year_stats$year
+
+  max_y <- max(vapply(plot_list, function(d) max(d$counter, na.rm = TRUE), numeric(1)))
+
+  # Always use the exact window_dates for x-axis labels so they are locked to the most recent data
+  x_labels <- paste0(1:14, "\n", format(window_dates, "%d.%m."))
+
     # Increase bottom margin to fit two-line labels
     par(mar = c(6, 6, 4, 2) + 0.1)
     plot(NA, NA,
@@ -860,5 +871,6 @@ output$station_compare_plot <- renderPlotly({
 
   return(fig)
 })
+
 
 }
