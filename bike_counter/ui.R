@@ -252,6 +252,33 @@ ui <- dashboardPage(
                 plotlyOutput("monthly_bar_plot", height = 600)
               )
             )
+          ),
+          tabPanel(
+            "Standortvergleich Monat",
+            fluidRow(
+              column(
+                width = 4,
+                selectInput(
+                  inputId  = "monthly_standort_compare_ym",
+                  label    = "Jahr-Monat auswählen:",
+                  choices  = NULL,
+                  selected = NULL
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                plotlyOutput("monthly_standort_compare_plot", height = 500)
+              )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                br(),
+                DTOutput("monthly_standort_compare_table")
+              )
+            )
           )
         )
       ),

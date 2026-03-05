@@ -613,6 +613,99 @@ displaylogo = FALSE
 return(fig)
 })
 
+# ---- Standortvergleich Monat (Monatsübersicht new tab) ----
+observe({
+  # Populate the year-month dropdown with all available year-months
+  ym_choices <- bike_counter %>%
+    mutate(year_month = sprintf("%04d-%02d",
+                                lubridate::year(date),
+                                lubridate::month(date))) %>%
+    pull(year_month) %>%
+    unique() %>%
+    sort(decreasing = TRUE)
+  
+  updateSelectInput(session, "monthly_standort_compare_ym", choices = ym_choices)
+})
+
+output$monthly_standort_compare_plot <- renderPlotly({
+  req(input$monthly_standort_compare_ym)
+  
+  df <- bike_counter %>%
+    mutate(year_month = sprintf("%04d-%02d",
+                                lubridate::year(date),
+                                lubridate::month(date))) %>%
+    filter(year_month == input$monthly_standort_compare_ym) %>%
+    group_by(Standort) %>%
+    summarise(total = sum(counter, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(total))
+  
+  if (nrow(df) == 0) {
+    return(plotly_empty() %>%
+             plotly::layout(title = "Keine Daten für diesen Monat"))
+  }
+  
+  # Keep Standort order by descending total
+  df$Standort <- factor(df$Standort, levels = df$Standort)
+  
+  fig <- plot_ly(
+    data          = df,
+    x             = ~Standort,
+    y             = ~total,
+    type          = "bar",
+    marker        = list(color = "steelblue"),
+    hovertemplate = "Standort: %{x}<br>Summe: %{y:,.0f}<extra></extra>"
+  )
+  
+  fig <- plotly::layout(
+    fig,
+    title         = paste0("Standortvergleich – ", input$monthly_standort_compare_ym),
+    xaxis         = list(title = "Standort", tickangle = -40),
+    yaxis         = list(title = "Summe Radfahrende", separatethousands = TRUE),
+    plot_bgcolor  = "#f5f5f5",
+    paper_bgcolor = "white"
+  )
+  
+  fig <- plotly::config(
+    fig,
+    displayModeBar         = TRUE,
+    modeBarButtonsToRemove = c("lasso2d", "select2d", "autoScale2d"),
+    displaylogo            = FALSE
+  )
+  
+  return(fig)
+})
+
+output$monthly_standort_compare_table <- renderDT({
+  req(input$monthly_standort_compare_ym)
+  
+  df <- bike_counter %>%
+    mutate(year_month = sprintf("%04d-%02d",
+                                lubridate::year(date),
+                                lubridate::month(date))) %>%
+    filter(year_month == input$monthly_standort_compare_ym) %>%
+    group_by(Standort) %>%
+    summarise(
+      `Summe Radfahrende` = round(sum(counter, na.rm = TRUE), -3),
+      .groups = "drop"
+    ) %>%
+    arrange(desc(`Summe Radfahrende`))
+  
+  datatable(
+    df,
+    rownames = FALSE,
+    options  = list(
+      pageLength = 25,
+      dom        = "ft",
+      language   = list(search = "Suchen:"),
+      scrollX    = TRUE
+    ),
+    class = "cell-border stripe compact"
+  ) %>%
+    formatStyle("Standort", fontWeight = "bold") %>%
+    formatCurrency("Summe Radfahrende",
+                   currency = "", interval = 3, mark = ".", digits = 0)
+})
+
 # ---- Last 14 Days (base R plot) ----
 output$last14_plot <- renderPlot({
 req(input$last14_station)
